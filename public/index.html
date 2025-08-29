@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexGuard AI - V2ray Usage Matrix</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        :root { --glow-color: rgba(168, 85, 247, 0.6); }
+        body { font-family: 'Inter', sans-serif; background-color: #020010; color: #e0e0e0; overflow: hidden; }
+        
+        #background-animation {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background-image: 
+                radial-gradient(circle at calc(20% + var(--mouse-x, 0) * 20px) calc(20% + var(--mouse-y, 0) * 20px), rgba(99, 102, 241, 0.2) 0%, transparent 30%),
+                radial-gradient(circle at calc(80% + var(--mouse-x, 0) * 20px) calc(70% + var(--mouse-y, 0) * 20px), rgba(168, 85, 247, 0.2) 0%, transparent 30%),
+                linear-gradient(0deg, rgba(2,0,16,1) 0%, rgba(5,3,29,1) 100%);
+            overflow: hidden; transition: background-position 0.1s linear;
+        }
+
+        .grid-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: linear-gradient(rgba(128, 0, 128, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(128, 0, 128, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            transform: translate(var(--mouse-x, 0), var(--mouse-y, 0));
+            transition: transform 0.1s linear;
+        }
+        
+        .glass-panel { background: rgba(10, 8, 28, 0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
+        .gradient-text { background: linear-gradient(90deg, #818CF8, #A78BFA, #F472B6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-fill-color: transparent; }
+        #main-content { opacity: 0; transform: scale(0.95); transition: opacity 0.8s ease-out, transform 0.8s ease-out; }
+        #main-content.visible { opacity: 1; transform: scale(1); }
+        #loader-text { font-family: 'Orbitron', sans-serif; transition: opacity 0.4s ease-in-out, filter 0.4s ease-in-out; }
+        @keyframes apple-zoom-out { 0% { transform: scale(1); opacity: 1; filter: blur(0); } 100% { transform: scale(2); opacity: 0; filter: blur(10px); } }
+        .apple-zoom-animation { animation: apple-zoom-out 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .floating-label-group { position: relative; }
+        .form-input { background-color: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); transition: border-color 0.3s, box-shadow 0.3s; }
+        .form-label { position: absolute; top: 50%; left: 1rem; transform: translateY(-50%); color: rgba(255, 255, 255, 0.5); transition: all 0.2s ease-in-out; pointer-events: none; }
+        .form-input:not(:placeholder-shown) + .form-label, .form-input:focus + .form-label { top: 0.5rem; transform: translateY(0); font-size: 0.75rem; color: #A855F7; }
+        .form-input:focus { outline: none; border-color: #A855F7; box-shadow: 0 0 20px var(--glow-color); }
+        .ai-button { position: relative; background: linear-gradient(90deg, #6366F1, #A855F7, #EC4899); background-size: 200% 100%; transition: all 0.5s ease; overflow: hidden; font-family: 'Orbitron', sans-serif; }
+        .ai-button:hover:not(:disabled) { box-shadow: 0 0 25px var(--glow-color); background-position: right center; }
+        .ai-button:disabled { cursor: not-allowed; opacity: 0.6; }
+        #help-modal { display: none; opacity: 0; transition: opacity 0.3s ease; }
+        #help-modal.show { display: flex; opacity: 1; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .result-card { animation: fadeInUp 0.6s ease-out forwards; position: relative; }
+        
+        .result-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 0.8rem;
+            padding: 1px;
+            background: radial-gradient(400px circle at var(--mouse-x) var(--mouse-y), rgba(168, 85, 247, 0.5), transparent 80%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .result-card:hover::before { opacity: 1; }
+        
+        @keyframes fill-progress { from { width: 0%; } }
+        .progress-bar-inner { animation: fill-progress 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+
+        .copy-button { background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); transition: all 0.2s ease-in-out; }
+        .copy-button:hover { background-color: rgba(255, 255, 255, 0.1); border-color: #A855F7; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="background-animation"><div class="grid-overlay"></div></div>
+
+    <div id="help-icon" class="fixed top-4 right-4 z-50"><button onclick="openModal()" class="w-12 h-12 glass-panel rounded-full text-white/80 hover:bg-white/10 hover:text-white transition-all duration-300"><i class="fa-solid fa-question"></i></button></div>
+
+    <div id="loader" class="absolute inset-0 flex items-center justify-center z-20"><h1 id="loader-text" class="text-xl md:text-2xl font-bold tracking-wider text-center px-4 gradient-text"></h1></div>
+
+    <main id="main-content" class="w-full max-w-md space-y-8 z-10">
+        <header class="text-center space-y-2">
+            <i class="fa-solid fa-microchip text-5xl gradient-text"></i>
+            <h1 class="text-3xl sm:text-4xl font-bold text-white" style="font-family: 'Orbitron', sans-serif;">NexGuard <span class="gradient-text">LK</span></h1>
+            <p class="text-gray-400">Enter client identifier for real-time usage matrix.</p>
+        </header>
+
+        <form id="usage-form" class="space-y-6">
+            <div class="floating-label-group">
+                <input type="text" id="username" name="username" class="w-full px-4 py-3.5 text-white rounded-lg form-input pt-5" placeholder=" " required>
+                <label for="username" class="form-label">Enter Username...</label>
+            </div>
+            <button type="submit" class="w-full py-2.5 font-semibold text-white rounded-lg ai-button">
+                <span class="button-text"><i class="fa-solid fa-magnifying-glass-chart mr-2"></i>ANALYZE USAGE</span>
+            </button>
+        </form>
+
+        <div id="result"></div>
+        
+        <footer class="flex items-center justify-center space-x-6 pt-4">
+            <a href="https://t.me/nexguardusagebot" class="text-gray-400 hover:text-white transition transform hover:scale-110"><i class="fa-brands fa-telegram text-2xl"></i></a>
+            <a href="https://wa.me/94760492554" class="text-gray-400 hover:text-white transition transform hover:scale-110"><i class="fa-brands fa-whatsapp text-2xl"></i></a>
+            <a href="mailto:navindu4000@gmail.com" class="text-gray-400 hover:text-white transition transform hover:scale-110"><i class="fa-solid fa-globe text-2xl"></i></a>
+        </footer>
+    </main>
+
+    <div id="help-modal" class="fixed inset-0 bg-black/70 z-[100]" onclick="closeModal()">
+        <div class="glass-panel rounded-lg p-6 space-y-6 w-11/12 max-w-lg m-auto" onclick="event.stopPropagation()"><div class="flex justify-between items-center"><h2 class="text-2xl font-bold text-white">Help & Support Matrix</h2><button onclick="closeModal()" class="text-gray-400 hover:text-white text-3xl">&times;</button></div><div><h3 class="text-lg font-semibold text-purple-400 mb-2">How to find your Username?</h3><p class="text-gray-300 text-sm mb-4">Your username is the name assigned to your V2ray configuration. It's often visible in your V2ray client app, usually next to the server connection name.</p><div class="bg-black/50 border border-white/10 rounded-lg p-2"><img src="/public/assets/help.jpeg" alt="Example image of where to find the username" class="rounded w-full h-auto"></div></div><div><h3 class="text-lg font-semibold text-purple-400 mb-3">Contact Support Node</h3><div class="space-y-3"><a href="https://t.me/nexguardusagebot" class="flex items-center p-3 bg-white/5 rounded-lg hover:bg-white/10 transition"><i class="fa-brands fa-telegram text-sky-400 w-6 text-xl"></i><span class="ml-4 text-white">Connect via Telegram</span></a><a href="https://wa.me/94760492554" class="flex items-center p-3 bg-white/5 rounded-lg hover:bg-white/10 transition"><i class="fa-brands fa-whatsapp text-green-400 w-6 text-xl"></i><span class="ml-4 text-white">Connect via WhatsApp</span></a></div></div></div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('help-modal');
+        function openModal() { modal.classList.add('show'); }
+        function closeModal() { modal.classList.remove('show'); }
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+
+        const loader = document.getElementById('loader');
+        const loaderText = document.getElementById('loader-text');
+        const mainContent = document.getElementById('main-content');
+        const loadingPhrases = ["Initializing NexGuard Core...", "Calibrating Data Matrix...", "Authenticating Quantum Link...", "NexGuard LK"];
+        let phraseIndex = 0;
+
+        function cycleLoaderText() {
+            loaderText.style.opacity = '0';
+            loaderText.style.filter = 'blur(5px)';
+            setTimeout(() => {
+                if (phraseIndex < loadingPhrases.length - 1) {
+                    loaderText.textContent = loadingPhrases[phraseIndex];
+                    loaderText.style.opacity = '1';
+                    loaderText.style.filter = 'blur(0)';
+                    phraseIndex++;
+                    setTimeout(cycleLoaderText, 1800);
+                } else {
+                    startFinalAnimation();
+                }
+            }, 400);
+        }
+        
+        function startFinalAnimation() {
+            loaderText.textContent = loadingPhrases[loadingPhrases.length - 1];
+            loaderText.classList.remove('gradient-text');
+            loaderText.style.color = 'white';
+            loaderText.style.opacity = '1';
+            loaderText.style.filter = 'blur(0)';
+            setTimeout(() => {
+                loaderText.classList.add('apple-zoom-animation');
+                mainContent.classList.add('visible');
+                loaderText.addEventListener('animationend', () => {
+                    loader.style.display = 'none';
+                }, { once: true });
+            }, 1000);
+        }
+
+        cycleLoaderText();
+
+        function animateCounter(element, start, end, duration, isBytes = false) {
+            if (!element) return;
+            let startTimestamp = null;
+            const step = timestamp => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const current = Math.floor(progress * (end - start) + start);
+                element.innerHTML = isBytes ? formatBytes(current) : `${current}%`;
+                if (progress < 1) window.requestAnimationFrame(step);
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        function formatBytes(bytes=0, d=2) { const k=1024, s=['B', 'KB', 'MB', 'GB', 'TB']; if(bytes===0) return '0 B'; const i=Math.floor(Math.log(bytes)/Math.log(k)); return `${parseFloat((bytes/k**i).toFixed(d))} ${s[i]}`; }
+
+        const usageForm = document.getElementById('usage-form');
+        usageForm.addEventListener('submit', async e => {
+            e.preventDefault();
+            const submitButton = usageForm.querySelector('button');
+            const buttonText = submitButton.querySelector('.button-text');
+            const u = document.getElementById('username').value.trim(), r=document.getElementById('result');
+            
+            submitButton.disabled = true;
+            buttonText.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>ANALYZING...`;
+            
+            try {
+                // Connecting to the real backend server
+                const res = await fetch(`/api/check-usage/${u}`);
+                
+                // If user not found (404), display specific message
+                if (res.status === 404) {
+                     r.innerHTML = `<div class="p-4 text-center text-amber-400 glass-panel rounded-lg flex flex-col items-center gap-3"><i class="fa-solid fa-user-slash text-2xl"></i><div><p class="font-semibold">This client name does not exist.</p><p class="text-sm text-gray-400"><a href="https://wa.me/94760492554" class="underline hover:text-white">Please contact our service for assistance.</a></p></div></div>`;
+                     return;
+                }
+                
+                // If session expired (503), ask user to try again
+                if (res.status === 503) {
+                    const errorData = await res.json();
+                    r.innerHTML = `<div class="p-4 text-center text-blue-400 glass-panel rounded-lg">${errorData.message || 'Session renewed. Please try again.'}</div>`;
+                    return;
+                }
+
+                // Handle other server errors
+                if (!res.ok) {
+                    throw new Error(`Server error: ${res.status}`);
+                }
+
+                const d = await res.json();
+                
+                if (d.success) {
+                    displayUserData(d.data, u);
+                    usageForm.reset();
+                } else {
+                    r.innerHTML = `<div class="p-4 text-center text-amber-400 glass-panel rounded-lg">${d.message || 'Could not retrieve user data.'}</div>`;
+                }
+
+            } catch (err) {
+                console.error(err);
+                r.innerHTML = `<div class="p-4 text-center text-red-400 glass-panel rounded-lg">An error occurred. Please try again later.</div>`;
+            } finally {
+                submitButton.disabled = false;
+                buttonText.innerHTML = `<i class="fa-solid fa-magnifying-glass-chart mr-2"></i>ANALYZE USAGE`;
+            }
+        });
+
+        function displayUserData(data, name) {
+            const resultDiv = document.getElementById('result');
+            const down = data.down || 0, up = data.up || 0, totalUsed = down + up, totalQuota = data.total || 0;
+            const usagePercentage = totalQuota > 0 ? Math.min((totalUsed / totalQuota) * 100, 100) : 0;
+            const status = data.enable ? `<span class="font-semibold text-green-400">ONLINE</span>` : `<span class="font-semibold text-red-400">OFFLINE</span>`;
+            let expiry = 'N/A';
+            if (data.expiryTime && data.expiryTime > 0) {
+                const expDate = new Date(data.expiryTime);
+                expiry = new Date() > expDate ? `<span class="font-semibold text-red-400">Expired</span>` : expDate.toLocaleDateString('en-CA');
+            }
+
+            const html = `
+                <div class="result-card p-6 glass-panel rounded-xl space-y-5">
+                    <div class="flex justify-between items-center pb-3 border-b border-white/10">
+                        <h3 class="text-lg font-semibold text-white flex items-center min-w-0">
+                            <i class="fa-solid fa-satellite-dish mr-3 text-purple-400 flex-shrink-0"></i>
+                            <span class="truncate" title="${name}">Client: ${name}</span>
+                        </h3>
+                        <div>${status}</div>
+                    </div>
+                    ${totalQuota > 0 ? `<div class="space-y-2"><div class="flex justify-between items-baseline text-sm"><span class="font-medium text-gray-300">Data Quota Usage</span><span id="usage-percentage" class="font-bold text-white">0%</span></div><div class="w-full bg-black/30 rounded-full h-2.5"><div class="progress-bar-inner bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 h-2.5 rounded-full" style="width: ${usagePercentage}%"></div></div></div>` : ''}
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div class="flex items-center p-3 bg-black/20 rounded-lg"><i class="fa-solid fa-circle-down text-sky-400 w-8 text-xl"></i><div><p class="text-gray-400">Download</p><p id="download-value" class="text-lg font-semibold text-white">0 B</p></div></div>
+                        <div class="flex items-center p-3 bg-black/20 rounded-lg"><i class="fa-solid fa-circle-up text-violet-400 w-8 text-xl"></i><div><p class="text-gray-400">Upload</p><p id="upload-value" class="text-lg font-semibold text-white">0 B</p></div></div>
+                        <div class="flex items-center p-3 bg-black/20 rounded-lg"><i class="fa-solid fa-database text-green-400 w-8 text-xl"></i><div><p class="text-gray-400">Total Used</p><p id="total-usage-value" class="text-lg font-semibold text-white">0 B</p></div></div>
+                        <div class="flex items-center p-3 bg-black/20 rounded-lg"><i class="fa-solid fa-calendar-xmark text-red-400 w-8 text-xl"></i><div><p class="text-gray-400">Expires On</p><p class="text-lg font-medium text-white">${expiry}</p></div></div>
+                    </div>
+                    ${data.subscriptionLink ? `<div class="pt-4"><button id="copy-link-btn" class="w-full py-2.5 text-sm font-semibold text-white rounded-lg copy-button"><i class="fa-solid fa-clipboard mr-2"></i>Copy Subscription Link</button></div>` : ''}
+                </div>`;
+            resultDiv.innerHTML = html;
+
+            const resultCard = resultDiv.querySelector('.result-card');
+            if (resultCard) {
+                resultCard.addEventListener('mousemove', e => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    e.currentTarget.style.setProperty('--mouse-x', `${x}px`);
+                    e.currentTarget.style.setProperty('--mouse-y', `${y}px`);
+                });
+            }
+
+            const copyBtn = document.getElementById('copy-link-btn');
+            if(copyBtn) {
+                copyBtn.addEventListener('click', () => {
+                    navigator.clipboard.writeText(data.subscriptionLink).then(() => {
+                        copyBtn.innerHTML = `<i class="fa-solid fa-check mr-2"></i>Copied!`;
+                        setTimeout(() => {
+                            copyBtn.innerHTML = `<i class="fa-solid fa-clipboard mr-2"></i>Copy Subscription Link`;
+                        }, 2000);
+                    });
+                });
+            }
+
+            const animDuration = 1500;
+            animateCounter(document.getElementById('download-value'), 0, down, animDuration, true);
+            animateCounter(document.getElementById('upload-value'), 0, up, animDuration, true);
+            animateCounter(document.getElementById('total-usage-value'), 0, totalUsed, animDuration, true);
+            if (totalQuota > 0) animateCounter(document.getElementById('usage-percentage'), 0, Math.floor(usagePercentage), animDuration, false);
+        }
+
+        const bg = document.getElementById('background-animation');
+        const grid = document.querySelector('.grid-overlay');
+        window.addEventListener('mousemove', e => {
+            const { clientX, clientY } = e;
+            const x = (clientX / window.innerWidth - 0.5) * 2; // -1 to 1
+            const y = (clientY / window.innerHeight - 0.5) * 2; // -1 to 1
+            
+            bg.style.setProperty('--mouse-x', x.toFixed(2));
+            bg.style.setProperty('--mouse-y', y.toFixed(2));
+            grid.style.transform = `translate(${x * -10}px, ${y * -10}px)`;
+        });
+    });
+    </script>
+
+</body>
+</html>
